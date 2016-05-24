@@ -4,11 +4,11 @@ Created on Fri May  6 11:37:14 2016
     Simplified Bayesian model to make predictions about a bimodal
     version of the RSG task.
     The model relies on the ideas proposed in Jazerdy, Shadlen 2010
-    
+
     It only implements the first two steps of the 3 stages,
-    estimation and selection of interval, still need to 
+    estimation and selection of interval, still need to
     implement the production.
-    
+
 @author: soyunkope
 """
 import numpy as np
@@ -50,21 +50,28 @@ wp = np.mean([0.0858, 0.0635, 0.0894, 0.0583, 0.0623, 0.0625])
 trials = np.linspace(400, 1600, 33)
 meassure = [pdf(time, loc=x, scale=x*wm) for x in trials]
 
-esUnA = [meass*prUniA for meass in meassure]
-esBiA = [meass*prBimA for meass in meassure]
-esUnB = [meass*prUniB for meass in meassure]
-esBiB = [meass*prBimB for meass in meassure]
+esUnA = np.array([meass*prUniA for meass in meassure])
+esBiA = np.array([meass*prBimA for meass in meassure])
+esUnB = np.array([meass*prUniB for meass in meassure])
+esBiB = np.array([meass*prBimB for meass in meassure])
 
 eUA_CDF = [x.cumsum()/x.sum() for x in esUnA]
 eBA_CDF = [x.cumsum()/x.sum() for x in esBiA]
 eUB_CDF = [x.cumsum()/x.sum() for x in esUnB]
 eBB_CDF = [x.cumsum()/x.sum() for x in esBiB]
 
-BLS_MAP_UA = [[x.mean(), x.max()] for x in esUnA]
-BLS_MAP_BA = [[x.mean(), x.max()] for x in esBiA]
-BLS_MAP_UB = [[x.mean(), x.max()] for x in esUnB]
-BLS_MAP_BB = [[x.mean(), x.max()] for x in esBiB]
+BLS_MAP_UA = np.array([[x.mean(), x.max(), x.argmax()] for x in esUnA])
+BLS_MAP_BA = np.array([[x.mean(), x.max(), x.argmax()] for x in esBiA])
+BLS_MAP_UB = np.array([[x.mean(), x.max(), x.argmax()] for x in esUnB])
+BLS_MAP_BB = np.array([[x.mean(), x.max(), x.argmax()] for x in esBiB])
 
+# Get time estimation given MAP result
+#   Easier given that it exist on the estimates array
+
+es_Tim_UA = [time[int(x)] for x in BLS_MAP_UA[:, 2]]
+es_Tim_BA = [time[int(x)] for x in BLS_MAP_BA[:, 2]]
+es_Tim_UB = [time[int(x)] for x in BLS_MAP_UB[:, 2]]
+es_Tim_BB = [time[int(x)] for x in BLS_MAP_BB[:, 2]]
 
 exIn = int(time.shape[0]/4)
 exTm = [time[exIn], time[exIn*2], time[exIn*3]]
@@ -112,6 +119,7 @@ for i in np.arange(2):
     if i == 0:
         axA.set_title('Narrow Bimodal')
         axB.set_title('Bayesian Estimation')
+        axB.set_xlabel('Time samples (ms)')
         axA.set_xticks([])
     else:
         axA.set_title('Wide Bimodal')
@@ -120,3 +128,22 @@ for i in np.arange(2):
         axB.set_yticks([])
         axA.legend(legPD)
         axB.legend(legES)
+
+# Plot the Sample duration v/s Model Estimation
+f_TriEst = plt.figure('Sample v Estimation')
+measEst = [[es_Tim_UA, es_Tim_BA], [es_Tim_UB, es_Tim_BB]]
+leg_ME = ['Unimodal MAP', 'Bimodal MAP', 'Identity']
+xy_lab = ['Sampled Interval (ms)', 'Estimated Interval (ms)']
+tit_ME = ['Narrow Bimodal',
+          'Wide Bimodal']
+
+for i in np.arange(2):
+    ax = f_TriEst.add_subplot(1, 2, i+1)
+    ax.plot(trials, measEst[i][0], 'g*--',
+            trials, measEst[i][1], 'b+--',
+            trials, trials, 'r:',)
+    ax.set_title(tit_ME[i])
+    ax.set_xlabel(xy_lab[0])
+    ax.set_ylabel(xy_lab[1])
+    ax.legend(leg_ME)
+    ax.axis('square')
